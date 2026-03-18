@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Timecode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --accent: #FF5722;
+  --accent-rgb: 255,87,34;
+  --bg: #000;
+  --bg2: #0a0a0a;
+  --surface: rgba(255,255,255,0.04);
+  --surface2: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.06);
+  --text: #fff;
+  --text2: #ccc;
+  --text3: #666;
+  --text4: #444;
+  --accent-fg: #fff;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
+input, input[type="range"] { -webkit-user-select: text; user-select: text; }
+input::placeholder { color: rgba(255,255,255,0.2); }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Sora', sans-serif;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+@keyframes diBar { from { height: 3px; } to { height: 16px; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes breathe { 0%,100% { transform: scale(1); opacity: 0.12; } 50% { transform: scale(1.12); opacity: 0.3; } }
+
+/* ── Layout ── */
+.app {
+  max-width: 480px; margin: 0 auto; height: 100vh;
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+
+/* ── Header ── */
+.header {
+  padding: 20px 20px 0;
+  display: flex; align-items: flex-start; justify-content: space-between; flex-shrink: 0;
+}
+.header h1 { font-size: 28px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+.header .sub {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--text4); letter-spacing: 2px; margin-top: 5px;
+}
+.header-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ── Buttons ── */
+.btn {
+  border: none; cursor: pointer; outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s cubic-bezier(0.4,0,0.2,1);
+  font-family: 'Sora', sans-serif;
+}
+.btn:active { transform: scale(0.92); }
+.btn-icon {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+}
+.btn-add { background: var(--accent); color: var(--accent-fg); font-size: 22px; font-weight: 700; }
+.btn-ghost { background: var(--surface2); color: var(--text3); }
+
+/* ── Search ── */
+.search-bar {
+  margin: 14px 20px 0; background: var(--surface2); border-radius: 12px;
+  padding: 0 14px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.search-bar .ico { color: var(--text3); font-size: 15px; flex-shrink: 0; }
+.search-bar input {
+  background: none; border: none; padding: 12px 0; color: var(--text);
+  font-size: 15px; font-family: 'Sora', sans-serif; outline: none; flex: 1; width: 0;
+}
+.search-clear {
+  width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.15);
+  border: none; color: #000; font-size: 11px; cursor: pointer;
+  display: none; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.search-clear.show { display: flex; }
+
+/* ── Filters ── */
+.filters {
+  display: flex; gap: 6px; padding: 12px 20px 0;
+  overflow-x: auto; flex-shrink: 0;
+}
+.filter-chip {
+  padding: 7px 16px; border-radius: 20px; background: var(--surface);
+  color: var(--text3); font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; letter-spacing: 1px; white-space: nowrap;
+  border: none; cursor: pointer; transition: transform 0.1s;
+}
+.filter-chip:active { transform: scale(0.94); }
+.filter-chip.active { font-weight: 700; color: #000; }
+
+/* ── Scrollable ── */
+.scroll-area {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 10px 12px 24px;
+}
+
+/* ── Track Row ── */
+.track-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px; border-radius: 14px; cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.4,0,0.2,1), background 0.15s;
+}
+.track-row:active { transform: scale(0.98); background: rgba(255,255,255,0.03); }
+.track-row.is-active { background: rgba(var(--accent-rgb),0.08); }
+.track-icon {
+  width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  font-weight: 700; color: var(--text3); letter-spacing: 1px;
+}
+.track-info { flex: 1; min-width: 0; }
+.track-title {
+  font-weight: 600; font-size: 15px; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.track-meta {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--text4); letter-spacing: 1px; margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.track-del {
+  background: none; border: none; padding: 8px; color: #333;
+  font-size: 18px; cursor: pointer; line-height: 1;
+  opacity: 0; transition: opacity 0.15s; flex-shrink: 0;
+}
+.track-row:hover .track-del { opacity: 1; }
+@media (hover: none) { .track-del { opacity: 0.4; } }
+
+.eq-bars { display: flex; gap: 2px; align-items: flex-end; height: 16px; }
+.eq-bars span { width: 2.5px; border-radius: 1px; background: #000; }
+
+/* ── Empty ── */
+.empty { text-align: center; padding: 60px 20px; animation: fadeUp 0.5s ease; }
+.empty-icon {
+  width: 72px; height: 72px; border-radius: 20px; margin: 0 auto 20px;
+  background: var(--surface); display: flex; align-items: center;
+  justify-content: center; font-size: 28px; border: 1px solid var(--border);
+}
+.empty h3 { font-weight: 700; font-size: 20px; margin-bottom: 6px; }
+.empty p {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--text4); letter-spacing: 1px; margin-bottom: 24px;
+}
+.btn-cta {
+  padding: 14px 32px; border-radius: 14px;
+  background: var(--accent); color: var(--accent-fg);
+  font-size: 15px; font-weight: 700;
+}
+
+/* ══ Player ══ */
+.player-view {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 10px 20px 80px; animation: fadeUp 0.35s ease; display: none;
+}
+.p-info { text-align: center; margin-bottom: 8px; }
+.p-title { font-weight: 800; font-size: 22px; letter-spacing: -0.5px; line-height: 1.15; }
+.p-artist {
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--text3); letter-spacing: 2px; margin-top: 6px;
+}
+.p-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 10px; padding: 4px 14px; border-radius: 20px;
+}
+.p-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+.p-badge span {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; letter-spacing: 2px; font-weight: 600;
+}
+
+/* ── Circle Viz ── */
+.circ-wrap { display: flex; justify-content: center; margin: 12px 0 8px; position: relative; }
+#circleCanvas { display: block; }
+.circ-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  text-align: center; pointer-events: none; z-index: 2;
+}
+.circ-time {
+  font-family: 'JetBrains Mono', monospace; font-size: 22px;
+  font-weight: 300; letter-spacing: 2px;
+}
+.circ-state {
+  font-family: 'JetBrains Mono', monospace; font-size: 8px;
+  letter-spacing: 3px; margin-top: 4px; color: var(--accent);
+}
+
+/* ── Waveform ── */
+.wave-wrap {
+  position: relative; margin: 16px 0; border-radius: 16px;
+  overflow: hidden; background: var(--bg2); border: 1px solid var(--border);
+}
+.wave-glow {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 200px; height: 200px; border-radius: 50%;
+  pointer-events: none; animation: breathe 4s ease-in-out infinite;
+}
+#waveCanvas { display: block; width: 100%; height: 160px; position: relative; z-index: 1; }
+
+/* ── Audio Embed ── */
+.embed-box {
+  width: 100%; border-radius: 12px; overflow: hidden;
+  background: var(--bg2); border: 1px solid var(--border);
+  margin: 12px 0; position: relative;
+}
+.embed-tag {
+  position: absolute; top: 6px; right: 8px; z-index: 2;
+  padding: 2px 8px; border-radius: 4px;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+  font-family: 'JetBrains Mono', monospace; font-size: 8px;
+  color: var(--text3); letter-spacing: 2px;
+}
+.embed-box iframe { width: 100%; border: none; display: block; color-scheme: dark; }
+
+/* ── Transport ── */
+.transport { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 16px 0; }
+.btn-skip {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--surface2); color: var(--text3); font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-play {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-fg); font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 24px rgba(var(--accent-rgb),0.2);
+}
+
+/* ══ Equalizer ══ */
+.eq-box {
+  margin: 20px 0; padding: 20px 16px; border-radius: 16px;
+  background: var(--bg2); border: 1px solid var(--border);
+}
+.eq-top {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+}
+.eq-top h3 {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: 3px; color: var(--text3);
+}
+.eq-presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.eq-pre {
+  padding: 5px 10px; border-radius: 6px; background: var(--surface2);
+  border: none; font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; color: var(--text4); letter-spacing: 1px; cursor: pointer;
+  transition: transform 0.1s;
+}
+.eq-pre:active { transform: scale(0.94); }
+.eq-pre.on { background: var(--accent); color: var(--accent-fg); font-weight: 700; }
+
+.eq-sliders { display: flex; flex-direction: column; gap: 10px; }
+.eq-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.eq-freq {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  color: var(--text4); width: 30px; text-align: right; flex-shrink: 0;
+}
+.eq-range-wrap { flex: 1; position: relative; height: 24px; display: flex; align-items: center; }
+.eq-range-wrap input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px; background: var(--surface2);
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+.eq-range-wrap input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--accent);
+  border: 2px solid var(--bg); cursor: pointer;
+  box-shadow: 0 0 6px rgba(var(--accent-rgb),0.3);
+}
+.eq-range-wrap input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--bg); cursor: pointer;
+}
+.eq-val {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  color: var(--text3); width: 36px; text-align: left; flex-shrink: 0;
+}
+
+/* ── Dot Grid ── */
+.dot-grid {
+  display: grid; grid-template-columns: repeat(16,1fr);
+  gap: 6px; padding: 12px 14px;
+  background: var(--surface); border-radius: 14px; margin: 12px 0;
+}
+.dot-grid .d {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); transition: background 0.12s;
+}
+
+/* ── Theme ── */
+.theme-box {
+  margin: 16px 0; padding: 16px; border-radius: 16px;
+  background: var(--bg2); border: 1px solid var(--border);
+}
+.theme-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: 3px; color: var(--text3); margin-bottom: 14px;
+}
+.theme-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.theme-sw {
+  width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+  border: 3px solid transparent; transition: all 0.2s; position: relative;
+}
+.theme-sw:active { transform: scale(0.9); }
+.theme-sw.on { border-color: #fff; }
+.theme-sw.on::after {
+  content: '\2713'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800;
+  color: var(--sw-fg, #000);
+}
+
+/* ── Up Next ── */
+.upn-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  color: var(--text4); letter-spacing: 3px; margin: 20px 0 10px;
+}
+.upn-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.upn-row:active { opacity: 0.7; }
+.upn-ico {
+  width: 32px; height: 32px; border-radius: 7px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace; font-size: 8px;
+  font-weight: 700; letter-spacing: 1px;
+}
+.upn-title {
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.upn-meta {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  color: var(--text4); letter-spacing: 1px; margin-top: 1px;
+}
+
+/* ── Sheet ── */
+.sheet-bg {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0); backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+  transition: all 0.35s cubic-bezier(0.4,0,0.2,1); display: none;
+}
+.sheet-bg.open {
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+.sheet-panel {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  max-width: 480px; margin: 0 auto;
+  background: #1c1c1e; border-radius: 20px 20px 0 0;
+  padding: 12px 20px 40px;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+.sheet-bg.open .sheet-panel { transform: translateY(0); }
+.sheet-handle {
+  width: 36px; height: 5px; border-radius: 3px;
+  background: rgba(255,255,255,0.15); margin: 0 auto 20px;
+}
+.sheet-hdr {
+  display: flex; justify-content: space-between;
+  align-items: center; margin-bottom: 20px;
+}
+.sheet-hdr h2 { font-weight: 700; font-size: 22px; }
+.sheet-x {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); border: none;
+  color: #888; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.plat-hints { display: flex; gap: 6px; margin-bottom: 16px; }
+.plat-hint { flex: 1; padding: 7px 0; border-radius: 8px; text-align: center; }
+.plat-hint .icon { font-size: 14px; margin-bottom: 2px; }
+.plat-hint .lbl {
+  font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: 1px;
+}
+.s-fields { display: flex; flex-direction: column; gap: 10px; }
+.s-row { display: flex; gap: 10px; }
+.s-input {
+  background: var(--surface2); border: none; border-radius: 12px;
+  padding: 15px 16px; color: #fff; font-size: 16px;
+  font-family: 'Sora', sans-serif; outline: none; width: 100%;
+}
+.s-err {
+  color: #FF3B30; font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; margin-top: 10px; display: none;
+}
+.s-err.show { display: block; }
+.btn-go {
+  width: 100%; padding: 16px; margin-top: 20px;
+  background: var(--accent); border-radius: 14px;
+  color: var(--accent-fg); font-size: 16px;
+  font-family: 'Sora', sans-serif; font-weight: 700;
+}
+.no-match {
+  text-align: center; padding: 40px 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: #333; letter-spacing: 2px; display: none;
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1 id="hTitle">Library</h1>
+      <div class="sub" id="hSub">0 TRACKS</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-icon btn-ghost" id="btnSwitch" style="display:none" onclick="switchView()">♪</button>
+      <button class="btn btn-icon btn-add" onclick="openSheet()">+</button>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar" id="searchBar">
+    <span class="ico">⌕</span>
+    <input type="text" placeholder="Search tracks..." id="searchIn" oninput="doSearch()">
+    <button class="search-clear" id="searchX" onclick="clearSearch()">✕</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters" id="filterBar"></div>
+
+  <!-- Library -->
+  <div class="scroll-area" id="libView">
+    <div id="tList"></div>
+    <div class="no-match" id="noMatch">NO MATCHES</div>
+    <div class="empty" id="emptyEl">
+      <div class="empty-icon">♪</div>
+      <h3>No tracks yet</h3>
+      <p>ADD TRACKS FROM YOUTUBE, SOUNDCLOUD & MORE</p>
+      <button class="btn btn-cta" onclick="openSheet()">Add your first track</button>
+    </div>
+  </div>
+
+  <!-- Player -->
+  <div class="player-view" id="playView">
+    <div class="p-info">
+      <div class="p-title" id="pT"></div>
+      <div class="p-artist" id="pA"></div>
+      <div class="p-badge" id="pB">
+        <div class="dot" id="pBd"></div>
+        <span id="pBl"></span>
+      </div>
+    </div>
+
+    <div class="circ-wrap">
+      <canvas id="circleCanvas" width="240" height="240"></canvas>
+      <div class="circ-center">
+        <div class="circ-time" id="cTime">00:00</div>
+        <div class="circ-state" id="cState">● PLAYING</div>
+      </div>
+    </div>
+
+    <div class="wave-wrap">
+      <div class="wave-glow" id="wGlow"></div>
+      <canvas id="waveCanvas"></canvas>
+    </div>
+
+    <!-- Audio embed (visible, compact) -->
+    <div class="embed-box" id="eBox">
+      <div class="embed-tag" id="eTag">AUDIO</div>
+      <div id="eCont"></div>
+    </div>
+
+    <!-- Transport -->
+    <div class="transport">
+      <button class="btn btn-skip" onclick="skipPrev()">⏮</button>
+      <button class="btn btn-play" id="btnPlay" onclick="tapPlay()">▶</button>
+      <button class="btn btn-skip" onclick="skipNext()">⏭</button>
+    </div>
+
+    <!-- Equalizer -->
+    <div class="eq-box">
+      <div class="eq-top">
+        <h3>EQUALIZER</h3>
+        <div class="eq-presets" id="eqPre"></div>
+      </div>
+      <div class="eq-sliders" id="eqSliders"></div>
+    </div>
+
+    <!-- Dot grid -->
+    <div class="dot-grid" id="dotGrid"></div>
+
+    <!-- Theme -->
+    <div class="theme-box">
+      <div class="theme-label">COLOR THEME</div>
+      <div class="theme-grid" id="themeGrid"></div>
+    </div>
+
+    <!-- Up Next -->
+    <div id="upnSec" style="display:none">
+      <div class="upn-label">UP NEXT</div>
+      <div id="upnList"></div>
+    </div>
+    <div style="height:30px"></div>
+  </div>
+
+  <!-- Add Sheet -->
+  <div class="sheet-bg" id="sheetBg" onclick="closeSheet()">
+    <div class="sheet-panel" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="sheet-hdr">
+        <h2>Add Track</h2>
+        <button class="sheet-x" onclick="closeSheet()">✕</button>
+      </div>
+      <div class="plat-hints">
+        <div class="plat-hint" style="background:rgba(255,59,48,0.07);border:1px solid rgba(255,59,48,0.13)">
+          <div class="icon">▶</div><div class="lbl" style="color:#FF3B30">YT</div>
+        </div>
+        <div class="plat-hint" style="background:rgba(255,85,0,0.07);border:1px solid rgba(255,85,0,0.13)">
+          <div class="icon">☁</div><div class="lbl" style="color:#FF5500">SC</div>
+        </div>
+        <div class="plat-hint" style="background:rgba(29,185,84,0.07);border:1px solid rgba(29,185,84,0.13)">
+          <div class="icon">●</div><div class="lbl" style="color:#1DB954">SP</div>
+        </div>
+        <div class="plat-hint" style="background:rgba(252,60,68,0.07);border:1px solid rgba(252,60,68,0.13)">
+          <div class="icon">♫</div><div class="lbl" style="color:#FC3C44">AM</div>
+        </div>
+      </div>
+      <div class="s-fields">
+        <input class="s-input" id="inUrl" placeholder="Paste URL here...">
+        <div class="s-row">
+          <input class="s-input" id="inTitle" placeholder="Track title" style="flex:1">
+          <input class="s-input" id="inArtist" placeholder="Artist" style="flex:1">
+        </div>
+      </div>
+      <div class="s-err" id="sErr"></div>
+      <button class="btn btn-go" onclick="addTrack()">Add to Library</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+// roundRect polyfill for older browsers
+// ════════════════════════════════════════════════
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    if (typeof r === 'number') r = [r, r, r, r];
+    const [tl, tr, br, bl] = r;
+    this.moveTo(x + tl, y);
+    this.lineTo(x + w - tr, y);
+    this.quadraticCurveTo(x + w, y, x + w, y + tr);
+    this.lineTo(x + w, y + h - br);
+    this.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+    this.lineTo(x + bl, y + h);
+    this.quadraticCurveTo(x, y + h, x, y + h - bl);
+    this.lineTo(x, y + tl);
+    this.quadraticCurveTo(x, y, x + tl, y);
+    this.closePath();
+    return this;
+  };
+}
+
+// ════════════════════════════════════════════════
+// State
+// ════════════════════════════════════════════════
+let tracks = [];
+let cur = null;       // current track
+let view = 'library'; // library | player
+let filter = 'all';
+let query = '';
+let playing = false;
+let elapsed = 0;
+
+// Cleanup refs — prevents leaks on rapid re-renders
+let _waveAf = null;
+let _circAf = null;
+let _dotIv = null;
+let _tickIv = null;
+
+// ── Platform data ──
+const P = {
+  youtube:    { color: '#FF3B30', rgb: '255,59,48',   label: 'YT', full: 'YouTube' },
+  soundcloud: { color: '#FF5500', rgb: '255,85,0',    label: 'SC', full: 'SoundCloud' },
+  spotify:    { color: '#1DB954', rgb: '29,185,84',   label: 'SP', full: 'Spotify' },
+  apple:      { color: '#FC3C44', rgb: '252,60,68',   label: 'AM', full: 'Apple Music' },
+};
+const gp = (t) => P[t] || { color: '#FF5722', rgb: '255,87,34', label: '??', full: 'Unknown' };
+
+// ── Themes ──
+const THEMES = [
+  { name: 'Flame',   hex: '#FF5722', rgb: '255,87,34' },
+  { name: 'Cherry',  hex: '#FF3B60', rgb: '255,59,96' },
+  { name: 'Violet',  hex: '#A855F7', rgb: '168,85,247' },
+  { name: 'Ocean',   hex: '#3B82F6', rgb: '59,130,246' },
+  { name: 'Cyan',    hex: '#06B6D4', rgb: '6,182,212' },
+  { name: 'Emerald', hex: '#10B981', rgb: '16,185,129' },
+  { name: 'Lime',    hex: '#84CC16', rgb: '132,204,22' },
+  { name: 'Amber',   hex: '#F59E0B', rgb: '245,158,11' },
+  { name: 'Rose',    hex: '#F43F5E', rgb: '244,63,94' },
+  { name: 'White',   hex: '#FFFFFF', rgb: '255,255,255' },
+];
+let theme = THEMES[0];
+
+// ── EQ ──
+const BANDS = ['32','64','125','250','500','1K','2K','4K','8K','16K'];
+let eq = [0,0,0,0,0,0,0,0,0,0];
+const PRESETS = {
+  Flat:      [0,0,0,0,0,0,0,0,0,0],
+  Bass:      [6,5,4,2,0,0,0,0,0,0],
+  Treble:    [0,0,0,0,0,1,3,4,5,6],
+  'V-Shape': [5,4,2,0,-2,-2,0,2,4,5],
+  Vocal:     [-1,0,2,4,4,3,2,0,-1,-2],
+  Rock:      [4,3,1,0,-1,0,2,3,4,4],
+};
+
+// ── Waveform shape (generated once) ──
+const WAVE_BARS = 80;
+const waveShape = [];
+for (let i = 0; i < WAVE_BARS; i++) {
+  waveShape.push(Math.abs(Math.sin(i * 0.25) * 50 + Math.cos(i * 0.6) * 25 + Math.sin(i * 0.12) * 15) + 8);
+}
+
+// ════════════════════════════════════════════════
+// URL Parse
+// ════════════════════════════════════════════════
+function parseURL(url) {
+  try {
+    const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    if (yt) return {
+      type: 'youtube', id: yt[1],
+      embed: 'https://www.youtube.com/embed/' + yt[1] + '?autoplay=1&rel=0&modestbranding=1'
+    };
+    if (url.includes('soundcloud.com')) return {
+      type: 'soundcloud', id: url,
+      embed: 'https://w.soundcloud.com/player/?url=' + encodeURIComponent(url) +
+        '&color=%23FF5500&auto_play=true&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false'
+    };
+    const sp = url.match(/open\.spotify\.com\/track\/([a-zA-Z0-9]+)/);
+    if (sp) return {
+      type: 'spotify', id: sp[1],
+      embed: 'https://open.spotify.com/embed/track/' + sp[1] + '?theme=0'
+    };
+    if (url.includes('music.apple.com')) return {
+      type: 'apple', id: url,
+      embed: url.replace('music.apple.com', 'embed.music.apple.com')
+    };
+    return null;
+  } catch (e) { return null; }
+}
+
+// ════════════════════════════════════════════════
+// Storage — uses localStorage (works in all browsers)
+// ════════════════════════════════════════════════
+function load() {
+  try { const r = localStorage.getItem('tc-v3-tracks'); if (r) tracks = JSON.parse(r); } catch(e) {}
+  try { const r = localStorage.getItem('tc-v3-theme'); if (r) { const t = THEMES.find(x => x.hex === r); if (t) theme = t; } } catch(e) {}
+  try { const r = localStorage.getItem('tc-v3-eq'); if (r) eq = JSON.parse(r); } catch(e) {}
+  applyTheme(theme);
+  render();
+}
+function saveTracks() { try { localStorage.setItem('tc-v3-tracks', JSON.stringify(tracks)); } catch(e) {} }
+function saveTheme() { try { localStorage.setItem('tc-v3-theme', theme.hex); } catch(e) {} }
+function saveEQ() { try { localStorage.setItem('tc-v3-eq', JSON.stringify(eq)); } catch(e) {} }
+
+// ════════════════════════════════════════════════
+// Theme
+// ════════════════════════════════════════════════
+function luminance(hex) {
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  return 0.299*r + 0.587*g + 0.114*b;
+}
+
+function applyTheme(t) {
+  theme = t;
+  const s = document.documentElement.style;
+  s.setProperty('--accent', t.hex);
+  s.setProperty('--accent-rgb', t.rgb);
+  // Dynamic foreground contrast
+  const fg = luminance(t.hex) > 0.6 ? '#000' : '#fff';
+  s.setProperty('--accent-fg', fg);
+  saveTheme();
+}
+
+// ════════════════════════════════════════════════
+// Cleanup helper — kills all animations/intervals
+// ════════════════════════════════════════════════
+function killAnims() {
+  if (_waveAf) { cancelAnimationFrame(_waveAf); _waveAf = null; }
+  if (_circAf) { cancelAnimationFrame(_circAf); _circAf = null; }
+  if (_dotIv) { clearInterval(_dotIv); _dotIv = null; }
+  if (_tickIv) { clearInterval(_tickIv); _tickIv = null; }
+}
+
+// ════════════════════════════════════════════════
+// Canvas: Waveform
+// ════════════════════════════════════════════════
+function initWave() {
+  const c = document.getElementById('waveCanvas');
+  if (!c) return;
+  // Defer to ensure layout is computed
+  requestAnimationFrame(() => {
+    const ctx = c.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = c.getBoundingClientRect();
+    const W = rect.width || 400;
+    const H = 160;
+    c.width = W * dpr;
+    c.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    let phase = 0;
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      const col = theme.hex;
+      const bw = (W - (WAVE_BARS - 1) * 2) / WAVE_BARS;
+      if (playing) phase += 0.06;
+
+      for (let i = 0; i < WAVE_BARS; i++) {
+        let h = waveShape[i];
+        const ei = Math.floor((i / WAVE_BARS) * eq.length);
+        h *= 1 + (eq[ei] || 0) * 0.06;
+        if (playing) h += Math.sin(phase + i * 0.3) * 12 + Math.cos(phase * 1.5 + i * 0.2) * 8;
+        h = Math.max(4, Math.min(h, H * 0.85));
+
+        const x = i * (bw + 2);
+        const y = (H - h) / 2;
+
+        const g = ctx.createLinearGradient(x, y, x, y + h);
+        g.addColorStop(0, col + 'CC');
+        g.addColorStop(0.5, col);
+        g.addColorStop(1, col + 'CC');
+
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.roundRect(x, y, bw, h, 2);
+        ctx.fill();
+
+        // Reflection
+        ctx.fillStyle = col + '12';
+        ctx.beginPath();
+        ctx.roundRect(x, y + h + 4, bw, h * 0.18, 1);
+        ctx.fill();
+      }
+      _waveAf = requestAnimationFrame(draw);
+    }
+    draw();
+  });
+}
+
+// ════════════════════════════════════════════════
+// Canvas: Circle Visualizer
+// ════════════════════════════════════════════════
+function initCircle() {
+  const c = document.getElementById('circleCanvas');
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const S = 240;
+  c.width = S * dpr;
+  c.height = S * dpr;
+  ctx.scale(dpr, dpr);
+  const cx = S/2, cy = S/2, R = 86;
+
+  let ph = 0;
+  function draw() {
+    ctx.clearRect(0, 0, S, S);
+    const col = theme.hex;
+    const bars = 64;
+    if (playing) ph += 0.02;
+
+    for (let i = 0; i < bars; i++) {
+      const angle = (i / bars) * Math.PI * 2 - Math.PI / 2;
+      let h = 10;
+      const ei = Math.floor((i / bars) * eq.length);
+      if (playing) {
+        h = 10 + Math.abs(Math.sin(ph*3 + i*0.4) * 20 + Math.cos(ph*2 + i*0.25) * 12);
+        h *= 1 + (eq[ei] || 0) * 0.08;
+      }
+
+      const x1 = cx + Math.cos(angle) * R;
+      const y1 = cy + Math.sin(angle) * R;
+      const x2 = cx + Math.cos(angle) * (R + h);
+      const y2 = cy + Math.sin(angle) * (R + h);
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = playing ? col + 'BB' : col + '33';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    // Inner ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, R - 2, 0, Math.PI * 2);
+    ctx.strokeStyle = col + '22';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    _circAf = requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ════════════════════════════════════════════════
+// Dot Grid
+// ════════════════════════════════════════════════
+function initDots() {
+  const g = document.getElementById('dotGrid');
+  const total = 4 * 16;
+  g.innerHTML = '';
+  for (let i = 0; i < total; i++) {
+    const d = document.createElement('div');
+    d.className = 'd';
+    g.appendChild(d);
+  }
+  _dotIv = setInterval(() => {
+    const dots = g.querySelectorAll('.d');
+    const col = theme.hex;
+    dots.forEach(d => { d.style.background = 'rgba(255,255,255,0.06)'; d.style.boxShadow = 'none'; });
+    if (!playing) return;
+    const count = 5 + Math.floor(Math.random() * 12);
+    for (let i = 0; i < count; i++) {
+      const idx = Math.floor(Math.random() * total);
+      dots[idx].style.background = col;
+      dots[idx].style.boxShadow = '0 0 5px ' + col + '55';
+    }
+  }, 200);
+}
+
+// ════════════════════════════════════════════════
+// Timer
+// ════════════════════════════════════════════════
+function initTimer() {
+  _tickIv = setInterval(() => {
+    if (playing) { elapsed++; updateClock(); }
+  }, 1000);
+  updateClock();
+}
+
+function updateClock() {
+  const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+  const s = String(elapsed % 60).padStart(2, '0');
+  const el = document.getElementById('cTime');
+  if (el) el.textContent = m + ':' + s;
+  const st = document.getElementById('cState');
+  if (st) st.textContent = playing ? '● PLAYING' : '❚❚ PAUSED';
+}
+
+// ════════════════════════════════════════════════
+// Controls
+// ════════════════════════════════════════════════
+function tapPlay() {
+  playing = !playing;
+  document.getElementById('btnPlay').textContent = playing ? '❚❚' : '▶';
+  updateClock();
+}
+
+function playTrack(id) {
+  cur = tracks.find(t => t.id === id) || null;
+  playing = true;
+  elapsed = 0;
+  view = 'player';
+  render();
+}
+
+function delTrack(id, ev) {
+  ev.stopPropagation();
+  if (cur && cur.id === id) { cur = null; playing = false; }
+  tracks = tracks.filter(t => t.id !== id);
+  saveTracks();
+  render();
+}
+
+function skipNext() {
+  if (!cur || !tracks.length) return;
+  const i = tracks.findIndex(t => t.id === cur.id);
+  playTrack(tracks[(i + 1) % tracks.length].id);
+}
+function skipPrev() {
+  if (!cur || !tracks.length) return;
+  const i = tracks.findIndex(t => t.id === cur.id);
+  playTrack(tracks[(i - 1 + tracks.length) % tracks.length].id);
+}
+
+function switchView() {
+  view = view === 'library' ? 'player' : 'library';
+  render();
+}
+
+// ════════════════════════════════════════════════
+// Sheet
+// ════════════════════════════════════════════════
+function openSheet() {
+  document.getElementById('inUrl').value = '';
+  document.getElementById('inTitle').value = '';
+  document.getElementById('inArtist').value = '';
+  document.getElementById('sErr').classList.remove('show');
+  const bg = document.getElementById('sheetBg');
+  bg.style.display = 'block';
+  requestAnimationFrame(() => bg.classList.add('open'));
+  setTimeout(() => document.getElementById('inUrl').focus(), 400);
+}
+function closeSheet() {
+  const bg = document.getElementById('sheetBg');
+  bg.classList.remove('open');
+  setTimeout(() => bg.style.display = 'none', 400);
+}
+function addTrack() {
+  const url = document.getElementById('inUrl').value.trim();
+  const title = document.getElementById('inTitle').value.trim();
+  const artist = document.getElementById('inArtist').value.trim();
+  const err = document.getElementById('sErr');
+
+  if (!url) { err.textContent = 'Paste a link'; err.classList.add('show'); return; }
+  const parsed = parseURL(url);
+  if (!parsed) { err.textContent = 'Unsupported — use YouTube, SoundCloud, Spotify, or Apple Music'; err.classList.add('show'); return; }
+
+  tracks.unshift({
+    id: Date.now().toString(), url,
+    title: title || 'Untitled', artist: artist || 'Unknown',
+    platform: parsed.type, embedUrl: parsed.embed,
+  });
+  saveTracks();
+  closeSheet();
+  render();
+}
+
+// ════════════════════════════════════════════════
+// Search & Filter
+// ════════════════════════════════════════════════
+function doSearch() {
+  query = document.getElementById('searchIn').value;
+  document.getElementById('searchX').classList.toggle('show', query.length > 0);
+  renderList();
+}
+function clearSearch() {
+  query = '';
+  document.getElementById('searchIn').value = '';
+  document.getElementById('searchX').classList.remove('show');
+  renderList();
+}
+function setFilter(f) {
+  filter = f;
+  renderFilters();
+  renderList();
+}
+
+// ════════════════════════════════════════════════
+// EQ — fixed: only update values, don't rebuild sliders while dragging
+// ════════════════════════════════════════════════
+function buildEQ() {
+  // Presets
+  const pre = document.getElementById('eqPre');
+  pre.innerHTML = Object.keys(PRESETS).map(n => {
+    const on = JSON.stringify(eq) === JSON.stringify(PRESETS[n]);
+    return '<button class="eq-pre' + (on ? ' on' : '') + '" onclick="doPreset(\'' + n + '\')">' + n + '</button>';
+  }).join('');
+
+  // Sliders — horizontal, easy to use on mobile
+  const box = document.getElementById('eqSliders');
+  box.innerHTML = BANDS.map((f, i) => {
+    const v = eq[i];
+    return '<div class="eq-row">' +
+      '<span class="eq-freq">' + f + '</span>' +
+      '<div class="eq-range-wrap"><input type="range" min="-8" max="8" step="1" value="' + v + '" data-idx="' + i + '" oninput="eqSlide(this)"></div>' +
+      '<span class="eq-val" id="eqV' + i + '">' + (v > 0 ? '+' : '') + v + 'dB</span>' +
+    '</div>';
+  }).join('');
+}
+
+function eqSlide(el) {
+  const i = parseInt(el.dataset.idx);
+  const v = parseInt(el.value);
+  eq[i] = v;
+  document.getElementById('eqV' + i).textContent = (v > 0 ? '+' : '') + v + 'dB';
+  saveEQ();
+  // Only update preset highlights, NOT the sliders
+  const pre = document.getElementById('eqPre');
+  pre.querySelectorAll('.eq-pre').forEach(btn => {
+    const name = btn.textContent;
+    const on = JSON.stringify(eq) === JSON.stringify(PRESETS[name]);
+    btn.classList.toggle('on', on);
+  });
+}
+
+function doPreset(name) {
+  eq = [...PRESETS[name]];
+  buildEQ(); // rebuild all since preset changed all values
+  saveEQ();
+}
+
+// ════════════════════════════════════════════════
+// Render
+// ════════════════════════════════════════════════
+function render() {
+  killAnims(); // clean up before re-building
+
+  const isP = view === 'player' && cur;
+  const btn = document.getElementById('btnSwitch');
+
+  // Header
+  document.getElementById('hTitle').textContent = isP ? 'Now Playing' : 'Library';
+  document.getElementById('hSub').textContent = isP
+    ? cur.artist.toUpperCase()
+    : tracks.length + ' TRACK' + (tracks.length !== 1 ? 'S' : '');
+
+  // Switch button
+  if (cur) { btn.style.display = 'flex'; btn.textContent = isP ? '≡' : '♪'; }
+  else { btn.style.display = 'none'; }
+
+  // Show/hide views
+  document.getElementById('searchBar').style.display = isP ? 'none' : 'flex';
+  document.getElementById('filterBar').style.display = isP ? 'none' : 'flex';
+  document.getElementById('libView').style.display = isP ? 'none' : 'block';
+  document.getElementById('playView').style.display = isP ? 'block' : 'none';
+
+  renderFilters();
+  renderList();
+
+  if (isP) {
+    renderPlayer();
+    // Delay canvas init so layout has computed sizes
+    requestAnimationFrame(() => {
+      initWave();
+      initCircle();
+      initDots();
+      initTimer();
+      updateClock();
+    });
+  }
+}
+
+function renderFilters() {
+  const bar = document.getElementById('filterBar');
+  const plats = ['all', ...new Set(tracks.map(t => t.platform))];
+  if (plats.length <= 1) { bar.innerHTML = ''; return; }
+
+  bar.innerHTML = plats.map(p => {
+    const on = filter === p;
+    const c = p === 'all' ? 'var(--accent)' : gp(p).color;
+    return '<button class="filter-chip' + (on ? ' active' : '') + '" ' +
+      'style="background:' + (on ? c : 'var(--surface)') + ';color:' + (on ? 'var(--accent-fg)' : 'var(--text3)') + '" ' +
+      'onclick="setFilter(\'' + p + '\')">' +
+      (p === 'all' ? 'ALL' : gp(p).label) + '</button>';
+  }).join('');
+}
+
+function renderList() {
+  const sq = query.toLowerCase();
+  const filtered = tracks
+    .filter(t => filter === 'all' || t.platform === filter)
+    .filter(t => !sq || t.title.toLowerCase().includes(sq) || t.artist.toLowerCase().includes(sq));
+
+  const list = document.getElementById('tList');
+  const empty = document.getElementById('emptyEl');
+  const noM = document.getElementById('noMatch');
+
+  if (tracks.length === 0) { empty.style.display = 'block'; list.innerHTML = ''; noM.style.display = 'none'; return; }
+  empty.style.display = 'none';
+  if (filtered.length === 0) { noM.style.display = 'block'; list.innerHTML = ''; return; }
+  noM.style.display = 'none';
+
+  list.innerHTML = filtered.map((t, i) => {
+    const c = gp(t.platform).color;
+    const isA = cur && cur.id === t.id;
+    const eqBarsHTML = '<div class="eq-bars">' +
+      '<span style="animation:diBar 0.3s ease-in-out infinite alternate"></span>' +
+      '<span style="animation:diBar 0.4s ease-in-out infinite alternate"></span>' +
+      '<span style="animation:diBar 0.5s ease-in-out infinite alternate"></span>' +
+      '<span style="animation:diBar 0.6s ease-in-out infinite alternate"></span></div>';
+
+    return '<div class="track-row' + (isA ? ' is-active' : '') + '" onclick="playTrack(\'' + t.id + '\')" ' +
+      'style="animation:fadeUp 0.3s ease ' + (i * 0.03) + 's both">' +
+      '<div class="track-icon" style="background:' + (isA ? c : 'var(--surface)') + '">' +
+      (isA ? eqBarsHTML : '<span>' + gp(t.platform).label + '</span>') +
+      '</div>' +
+      '<div class="track-info">' +
+        '<div class="track-title" style="color:' + (isA ? '#fff' : 'var(--text2)') + '">' + esc(t.title) + '</div>' +
+        '<div class="track-meta">' + esc(t.artist.toUpperCase()) + ' · ' + gp(t.platform).full.toUpperCase() + '</div>' +
+      '</div>' +
+      '<button class="track-del btn" onclick="delTrack(\'' + t.id + '\', event)">×</button>' +
+    '</div>';
+  }).join('');
+}
+
+function renderPlayer() {
+  if (!cur) return;
+  const c = gp(cur.platform).color;
+
+  document.getElementById('pT').textContent = cur.title;
+  document.getElementById('pA').textContent = cur.artist.toUpperCase();
+  document.getElementById('pBd').style.background = c;
+  document.getElementById('pBd').style.boxShadow = '0 0 4px ' + c;
+  document.getElementById('pBl').textContent = gp(cur.platform).full.toUpperCase();
+  document.getElementById('pBl').style.color = c;
+  document.getElementById('pB').style.background = c + '15';
+
+  // Embed — platform-appropriate compact player
+  const tag = document.getElementById('eTag');
+  tag.textContent = gp(cur.platform).full.toUpperCase() + ' · AUDIO';
+
+  const cont = document.getElementById('eCont');
+  const box = document.getElementById('eBox');
+
+  // YouTube: use compact embed at 0 height with controls only
+  // Other platforms: natural compact size
+  if (cur.platform === 'youtube') {
+    box.style.height = '56px';
+    cont.innerHTML = '<iframe src="' + cur.embedUrl + '" height="200" ' +
+      'allow="autoplay; encrypted-media" loading="lazy" ' +
+      'style="margin-top:-144px;pointer-events:auto"></iframe>';
+  } else if (cur.platform === 'spotify') {
+    box.style.height = '80px';
+    cont.innerHTML = '<iframe src="' + cur.embedUrl + '" height="80" ' +
+      'allow="autoplay; encrypted-media" loading="lazy" ' +
+      'style="border-radius:12px"></iframe>';
+  } else {
+    box.style.height = '80px';
+    cont.innerHTML = '<iframe src="' + cur.embedUrl + '" height="80" ' +
+      'allow="autoplay; encrypted-media" loading="lazy" ' +
+      'style="border-radius:12px"></iframe>';
+  }
+
+  document.getElementById('wGlow').style.background =
+    'radial-gradient(circle, ' + theme.hex + '22, transparent 70%)';
+
+  document.getElementById('btnPlay').textContent = playing ? '❚❚' : '▶';
+
+  // EQ
+  buildEQ();
+
+  // Theme grid
+  document.getElementById('themeGrid').innerHTML = THEMES.map(t => {
+    const on = t.hex === theme.hex;
+    const chkColor = luminance(t.hex) > 0.6 ? '#000' : '#fff';
+    return '<div class="theme-sw' + (on ? ' on' : '') + '" ' +
+      'style="background:' + t.hex + ';--sw-fg:' + chkColor + '" ' +
+      'onclick="applyTheme(THEMES.find(x=>x.hex===\'' + t.hex + '\'));render()" ' +
+      'title="' + t.name + '"></div>';
+  }).join('');
+
+  // Up next
+  const others = tracks.filter(x => x.id !== cur.id).slice(0, 4);
+  const sec = document.getElementById('upnSec');
+  const ul = document.getElementById('upnList');
+  if (others.length) {
+    sec.style.display = 'block';
+    ul.innerHTML = others.map(o => {
+      const oc = gp(o.platform).color;
+      return '<div class="upn-row" onclick="playTrack(\'' + o.id + '\')">' +
+        '<div class="upn-ico" style="background:' + oc + '15;color:' + oc + '">' + gp(o.platform).label + '</div>' +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="upn-title">' + esc(o.title) + '</div>' +
+          '<div class="upn-meta">' + esc(o.artist.toUpperCase()) + '</div>' +
+        '</div></div>';
+    }).join('');
+  } else {
+    sec.style.display = 'none';
+  }
+}
+
+// ════════════════════════════════════════════════
+// Util
+// ════════════════════════════════════════════════
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ════════════════════════════════════════════════
+// Init
+// ════════════════════════════════════════════════
+document.getElementById('sheetBg').style.display = 'none';
+load();
+</script>
+</body>
+</html>
